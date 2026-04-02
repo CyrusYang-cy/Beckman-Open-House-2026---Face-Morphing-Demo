@@ -1,0 +1,43 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Morphing Demo</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Face Morphing Demo</h1>
+    <div class="legend">
+      <span>Identity: <strong id="identity-name">-</strong></span>
+      <span>Trait: <strong id="trait-name">-</strong></span>
+    </div>
+    <p class="hint">
+      Use <kbd>Left</kbd>/<kbd>Right</kbd> to roll frames, <kbd>A</kbd>/<kbd>D</kbd> to switch trait, and <kbd>Space</kbd> to switch identity.
+    </p>
+
+    <div class="stage" aria-live="polite">
+      <aside class="preview-panel">
+        <p class="preview-title">First Frame</p>
+        <img id="first-frame-preview" class="preview-image" alt="First frame preview" />
+      </aside>
+
+      <div class="viewport-wrap">
+        <canvas id="viewer" class="viewer" aria-label="Frame viewer"></canvas>
+        <div id="direction-cue" class="direction-cue hidden"></div>
+        <div id="loading" class="loading-panel">Loading frames... 0%</div>
+      </div>
+
+      <aside class="preview-panel">
+        <p class="preview-title">Last Frame</p>
+        <img id="last-frame-preview" class="preview-image" alt="Last frame preview" />
+      </aside>
+    </div>
+
+    <p id="status" class="status">Waiting to load images from <code>/images</code>...</p>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
