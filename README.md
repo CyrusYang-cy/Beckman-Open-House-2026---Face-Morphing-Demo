@@ -1,5 +1,9 @@
 ﻿# Face Morphing Demo
 
+## Preview
+
+![Face Morphing Demo — three-panel view with first frame, current morphed frame, and last frame](images/sample-screenshot.png)
+
 ## Run
 
 From this folder:
