@@ -6,17 +6,13 @@
 
 ## Run
 
-From this folder:
+From this folder, start the local server and open the demo in your default browser:
 
-```powershell
-python -m http.server 8000
+```bash
+python serve.py
 ```
 
-Open:
-
-```text
-http://localhost:8000
-```
+The app is served at `http://127.0.0.1:8000/`. Press **Ctrl+C** in the terminal to stop. Use `python serve.py --no-open` if you do not want a browser tab opened automatically. Another port: `python serve.py -p 8080`.
 
 ## Folder Structure
 
