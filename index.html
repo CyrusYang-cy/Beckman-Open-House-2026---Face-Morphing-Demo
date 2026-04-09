@@ -1,43 +1,135 @@
 ﻿<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Face Morphing Demo</title>
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <main class="app">
-    <h1>Face Morphing Demo</h1>
-    <div class="legend">
-      <span>Identity: <strong id="identity-name">-</strong></span>
-      <span>Trait: <strong id="trait-name">-</strong></span>
-    </div>
-    <p class="hint">
-      Use <kbd>Left</kbd>/<kbd>Right</kbd> to roll frames, <kbd>A</kbd>/<kbd>D</kbd> to switch trait, and <kbd>Space</kbd> to switch identity.
-    </p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Face Morphing Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <aside class="sidebar" aria-label="About and controls">
+        <header class="sidebar-brand">
+          <h1 class="stereotype-warning">
+            Synthetic Faces based on stereotypical judgements
+          </h1>
+        </header>
 
-    <div class="stage" aria-live="polite">
-      <aside class="preview-panel">
-        <p class="preview-title">First Frame</p>
-        <img id="first-frame-preview" class="preview-image" alt="First frame preview" />
+        <section class="sidebar-status" aria-label="Current selection">
+          <h2 class="sidebar-heading">Now showing</h2>
+          <dl class="sidebar-meta">
+            <div class="meta-row">
+              <dt>Race</dt>
+              <dd id="current-race">—</dd>
+            </div>
+            <div class="meta-row">
+              <dt>Trait</dt>
+              <dd id="current-trait">—</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="sidebar-manual" aria-label="How to control the demo">
+          <h2 class="sidebar-heading">Controls</h2>
+          <figure class="controller-figure">
+            <img
+              class="controller-photo"
+              src="./assets/knob-controller.png"
+              width="200"
+              height="260"
+              alt="Handheld knob controller: large dial on top, three square buttons in a row at the bottom (left, center, right)."
+              decoding="async"
+              loading="lazy"
+            />
+            <figcaption class="controller-caption">
+              <a
+                class="controller-video-link"
+                href="https://www.youtube.com/watch?v=b81B6-tQSbA"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Short clip of this controller</a
+              >
+            </figcaption>
+          </figure>
+          <ul class="manual-list">
+            <li>
+              <span class="manual-action">Move through the morph</span>
+              <span class="manual-detail"
+                ><strong>Big wheel:</strong> turn <em>clockwise</em> or
+                <em>counter-clockwise</em> to morph the current trait.</span
+              >
+            </li>
+            <li>
+              <span class="manual-action">Switch trait</span>
+              <span class="manual-detail"
+                ><strong>Bottom row:</strong> press the <em>left</em> button or
+                the <em>right</em> button to change trait (age, gender, and so
+                on).</span
+              >
+            </li>
+            <li>
+              <span class="manual-action">Switch race</span>
+              <span class="manual-detail"
+                ><strong>Bottom row:</strong> press the <em>center</em> button
+                to change identity (Asian, Black, Latine, White).</span
+              >
+            </li>
+          </ul>
+        </section>
       </aside>
 
-      <div class="viewport-wrap">
-        <canvas id="viewer" class="viewer" aria-label="Frame viewer"></canvas>
-        <div id="direction-cue" class="direction-cue hidden"></div>
-        <div id="loading" class="loading-panel">Loading frames... 0%</div>
+      <div class="workspace" aria-live="polite">
+        <div class="stage">
+          <div class="viewport-wrap">
+            <canvas
+              id="viewer"
+              class="viewer"
+              aria-label="Frame viewer"
+            ></canvas>
+            <div id="direction-cue" class="direction-cue hidden"></div>
+            <div id="loading" class="loading-panel">Loading frames... 0%</div>
+          </div>
+
+          <div
+            class="film-strip"
+            role="group"
+            aria-label="Key frames along the morph"
+          >
+            <div class="film-cell" data-slot="0">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="1">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="2">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="3">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="4">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="5">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="6">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="7">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+            <div class="film-cell" data-slot="8">
+              <img class="film-thumb" alt="" decoding="async" />
+            </div>
+          </div>
+        </div>
       </div>
+    </main>
 
-      <aside class="preview-panel">
-        <p class="preview-title">Last Frame</p>
-        <img id="last-frame-preview" class="preview-image" alt="Last frame preview" />
-      </aside>
-    </div>
-
-    <p id="status" class="status">Waiting to load images from <code>/images</code>...</p>
-  </main>
-
-  <script src="./script.js"></script>
-</body>
+    <script src="./script.js"></script>
+  </body>
 </html>

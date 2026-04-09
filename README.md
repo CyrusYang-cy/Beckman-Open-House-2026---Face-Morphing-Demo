@@ -2,7 +2,7 @@
 
 ## Preview
 
-![Face Morphing Demo — three-panel view with first frame, current morphed frame, and last frame](images/sample-screenshot.png)
+![Screen recording of the Face Morphing Demo: main viewer, sidebar, and film strip](images/demo-preview.gif)
 
 ## Run
 

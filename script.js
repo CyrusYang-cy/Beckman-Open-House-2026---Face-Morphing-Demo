@@ -3,17 +3,65 @@
 
   const IMAGE_ROOT = "./images";
   const VALID_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif"];
+  const BASE_PAGE_TITLE = "Face Morphing Demo";
+  const FILM_STRIP_SLOT_COUNT = 9;
+  const FILM_STRIP_LABELS = [
+    "First",
+    "12%",
+    "25%",
+    "38%",
+    "50%",
+    "62%",
+    "75%",
+    "88%",
+    "Last"
+  ];
+
+  const TRAIT_MORPH_CUES = {
+    age: {
+      towardFirst: "Younger",
+      towardLast: "Older"
+    },
+    gender: {
+      towardFirst: "More feminine",
+      towardLast: "More masculine"
+    },
+    smart: {
+      towardFirst: "Less smart",
+      towardLast: "More smart"
+    },
+    dominant: {
+      towardFirst: "Less dominant",
+      towardLast: "More dominant"
+    }
+  };
+
+  const DEFAULT_MORPH_CUES = {
+    towardFirst: "Heading toward the start of this change",
+    towardLast: "Heading toward the end of this change"
+  };
 
   const canvas = document.getElementById("viewer");
   const ctx = canvas.getContext("2d", { alpha: false });
   const viewportWrap = document.querySelector(".viewport-wrap");
   const loadingPanel = document.getElementById("loading");
   const directionCueEl = document.getElementById("direction-cue");
-  const statusEl = document.getElementById("status");
-  const identityLegendEl = document.getElementById("identity-name");
-  const traitLegendEl = document.getElementById("trait-name");
-  const firstFramePreviewEl = document.getElementById("first-frame-preview");
-  const lastFramePreviewEl = document.getElementById("last-frame-preview");
+  const filmStripSlots = [...document.querySelectorAll(".film-cell")].map((cell) => ({
+    cell,
+    img: cell.querySelector(".film-thumb")
+  }));
+  const currentRaceEl = document.getElementById("current-race");
+  const currentTraitEl = document.getElementById("current-trait");
+
+  const RACE_LABEL_MAP = {
+    asian: "Asian",
+    black: "Black",
+    latine: "Latine",
+    latinx: "Latine",
+    latino: "Latine",
+    latina: "Latine",
+    white: "White"
+  };
 
   const state = {
     identities: [],
@@ -36,12 +84,46 @@
     devicePixelRatio: Math.max(1, window.devicePixelRatio || 1)
   };
 
-  function setStatus(message) {
-    statusEl.textContent = message;
+  function updateDocumentTitle(suffix) {
+    document.title = suffix ? `${BASE_PAGE_TITLE} — ${suffix}` : BASE_PAGE_TITLE;
+  }
+
+  function updateTitleForSelection() {
+    const identity = getCurrentIdentity();
+    const trait = getCurrentTrait();
+    if (identity && trait) {
+      updateDocumentTitle(`${formatRaceLabel(identity.name)} / ${formatTraitLabel(trait.name)}`);
+      return;
+    }
+    updateDocumentTitle();
   }
 
   function toDisplayName(raw) {
     return String(raw).replace(/[_-]+/g, " ").trim() || "Unknown";
+  }
+
+  function formatRaceLabel(raw) {
+    const key = toDisplayName(raw).toLowerCase().replace(/[\s_]+/g, "");
+    if (key && Object.prototype.hasOwnProperty.call(RACE_LABEL_MAP, key)) {
+      return RACE_LABEL_MAP[key];
+    }
+    const pretty = toDisplayName(raw);
+    return pretty.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }
+
+  function formatTraitLabel(raw) {
+    const pretty = toDisplayName(raw);
+    if (!pretty || pretty.toLowerCase() === "default") {
+      return "—";
+    }
+    return pretty.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }
+
+  function updateSidebarSelection() {
+    const identity = getCurrentIdentity();
+    const trait = getCurrentTrait();
+    currentRaceEl.textContent = identity ? formatRaceLabel(identity.name) : "—";
+    currentTraitEl.textContent = trait ? formatTraitLabel(trait.name) : "—";
   }
 
   function naturalSort(a, b) {
@@ -76,6 +158,33 @@
     return Math.floor((frameCount - 1) / 2);
   }
 
+  function getFilmStripIndices(frameCount) {
+    const empty = Array.from({ length: FILM_STRIP_SLOT_COUNT }, () => 0);
+    if (frameCount <= 0) {
+      return empty;
+    }
+    const last = frameCount - 1;
+    if (last === 0) {
+      return empty;
+    }
+    return Array.from({ length: FILM_STRIP_SLOT_COUNT }, (_, slot) =>
+      Math.round((slot / (FILM_STRIP_SLOT_COUNT - 1)) * last)
+    );
+  }
+
+  function getNearestFilmStripSlot(frameIndex, keyIndices) {
+    let bestSlot = 0;
+    let bestDist = Infinity;
+    for (let slot = 0; slot < keyIndices.length; slot += 1) {
+      const dist = Math.abs(keyIndices[slot] - frameIndex);
+      if (dist < bestDist || (dist === bestDist && slot < bestSlot)) {
+        bestDist = dist;
+        bestSlot = slot;
+      }
+    }
+    return bestSlot;
+  }
+
   function wrapIndex(value, count) {
     return ((value % count) + count) % count;
   }
@@ -92,23 +201,97 @@
     return identity.traits[state.currentTraitIndex] || null;
   }
 
-  function updateLegend() {
-    const identity = getCurrentIdentity();
-    const trait = getCurrentTrait();
-
-    identityLegendEl.textContent = identity ? toDisplayName(identity.name) : "-";
-    traitLegendEl.textContent = trait ? toDisplayName(trait.name) : "-";
+  function normalizeTraitCueKey(raw) {
+    return String(raw || "")
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  function updatePreviewFrames() {
+  function classifyTraitForCues(traitName) {
+    const k = normalizeTraitCueKey(traitName);
+    if (!k) {
+      return null;
+    }
+    const tokens = new Set(k.split(" "));
+    if (tokens.has("smart") || /\bsmart\b/.test(k)) {
+      return "smart";
+    }
+    if (tokens.has("dominant") || /\bdominan/.test(k)) {
+      return "dominant";
+    }
+    if (tokens.has("gender") || /\bgender\b/.test(k)) {
+      return "gender";
+    }
+    if (tokens.has("age") || k === "age") {
+      return "age";
+    }
+    return null;
+  }
+
+  function getMorphCueTexts() {
+    const trait = getCurrentTrait();
+    const bucket = classifyTraitForCues(trait?.name);
+    return bucket && TRAIT_MORPH_CUES[bucket] ? TRAIT_MORPH_CUES[bucket] : DEFAULT_MORPH_CUES;
+  }
+
+  function fillDirectionCueElement(direction, message) {
+    directionCueEl.replaceChildren();
+    const textSpan = document.createElement("span");
+    textSpan.className = "cue-text";
+    textSpan.textContent = message;
+    const arrow = document.createElement("span");
+    arrow.className = "cue-arrow";
+    arrow.textContent = direction < 0 ? "\u2190" : "\u2192";
+    if (direction < 0) {
+      directionCueEl.append(arrow, textSpan);
+    } else {
+      directionCueEl.append(textSpan, arrow);
+    }
+  }
+
+  function updateFilmStrip() {
     if (!state.frames.length) {
-      firstFramePreviewEl.removeAttribute("src");
-      lastFramePreviewEl.removeAttribute("src");
+      for (const { cell, img } of filmStripSlots) {
+        img.removeAttribute("src");
+        img.removeAttribute("alt");
+        cell.classList.remove("film-cell--active");
+        cell.removeAttribute("aria-current");
+      }
       return;
     }
 
-    firstFramePreviewEl.src = state.frames[0].src;
-    lastFramePreviewEl.src = state.frames[state.frames.length - 1].src;
+    const keyIndices = getFilmStripIndices(state.frames.length);
+
+    for (let slot = 0; slot < filmStripSlots.length; slot += 1) {
+      const { img } = filmStripSlots[slot];
+      const idx = keyIndices[slot];
+      const frame = state.frames[idx];
+      const label = FILM_STRIP_LABELS[slot] || `Step ${slot + 1}`;
+      img.src = frame.src;
+      img.alt = `${label} key frame (${idx + 1} of ${state.frames.length})`;
+    }
+  }
+
+  function updateFilmStripHighlight(frameIndex) {
+    if (!state.frames.length || !filmStripSlots.length) {
+      return;
+    }
+
+    const keyIndices = getFilmStripIndices(state.frames.length);
+    const activeSlot = getNearestFilmStripSlot(frameIndex, keyIndices);
+
+    for (let slot = 0; slot < filmStripSlots.length; slot += 1) {
+      const { cell } = filmStripSlots[slot];
+      const isActive = slot === activeSlot;
+      cell.classList.toggle("film-cell--active", isActive);
+      if (isActive) {
+        cell.setAttribute("aria-current", "true");
+      } else {
+        cell.removeAttribute("aria-current");
+      }
+    }
   }
 
   function clearCueHideTimer() {
@@ -141,9 +324,11 @@
             ? state.lastDirectionalInputDir
             : 0;
 
+    const { towardFirst, towardLast } = getMorphCueTexts();
+
     if (cueDirection < 0) {
       directionCueEl.className = "direction-cue to-left";
-      directionCueEl.innerHTML = "<span class=\"cue-arrow\">\u2190</span><span class=\"cue-text\">Morphing toward first frame</span>";
+      fillDirectionCueElement(-1, towardFirst);
       if (leftHeld || rightHeld || state.activeDirection !== 0) {
         clearCueHideTimer();
       } else {
@@ -154,7 +339,7 @@
 
     if (cueDirection > 0) {
       directionCueEl.className = "direction-cue to-right";
-      directionCueEl.innerHTML = "<span class=\"cue-text\">Morphing toward last frame</span><span class=\"cue-arrow\">\u2192</span>";
+      fillDirectionCueElement(1, towardLast);
       if (leftHeld || rightHeld || state.activeDirection !== 0) {
         clearCueHideTimer();
       } else {
@@ -165,7 +350,7 @@
 
     clearCueHideTimer();
     directionCueEl.className = "direction-cue hidden";
-    directionCueEl.innerHTML = "";
+    directionCueEl.replaceChildren();
   }
 
   async function fetchDirectoryDocument(dirPath) {
@@ -392,9 +577,7 @@
 
     state.currentIndex = clamped;
 
-    const identity = getCurrentIdentity();
-    const trait = getCurrentTrait();
-    setStatus(`${toDisplayName(identity?.name || "-")} / ${toDisplayName(trait?.name || "-")} - Frame ${clamped + 1} / ${state.frames.length}`);
+    updateFilmStripHighlight(clamped);
   }
 
   function setActiveTrait(traitIndex, resetToMiddleFrame = false) {
@@ -415,8 +598,9 @@
     state.keysDown.delete("ArrowLeft");
     state.keysDown.delete("ArrowRight");
 
-    updateLegend();
-    updatePreviewFrames();
+    updateTitleForSelection();
+    updateSidebarSelection();
+    updateFilmStrip();
     updateDirectionCue();
     setCanvasSize();
     drawFrame(targetFrame, true);
@@ -565,14 +749,46 @@
     drawFrame(state.currentIndex >= 0 ? state.currentIndex : 0, true);
   }
 
+  function isDocumentFullscreen() {
+    const d = document;
+    return !!(d.fullscreenElement || d.webkitFullscreenElement || d.msFullscreenElement);
+  }
+
+  function tryRequestFullscreen(event) {
+    if (event && event.key === "Escape") {
+      return;
+    }
+    if (isDocumentFullscreen()) {
+      return;
+    }
+
+    const root = document.documentElement;
+    const request =
+      root.requestFullscreen ||
+      root.webkitRequestFullscreen ||
+      root.webkitRequestFullScreen ||
+      root.msRequestFullscreen;
+
+    if (!request) {
+      return;
+    }
+
+    Promise.resolve(request.call(root)).catch(() => {});
+  }
+
+  function onFullscreenLayoutChange() {
+    window.requestAnimationFrame(() => handleResize());
+  }
+
   async function boot() {
-    setStatus("Discovering identities and traits...");
+    updateDocumentTitle("Loading…");
+    loadingPanel.textContent = "Discovering frames…";
 
     state.identities = await discoverIdentityTraitMap();
 
     if (!state.identities.length) {
       loadingPanel.textContent = "No frame images found";
-      setStatus("No images were found in /images. Add frames and refresh.");
+      updateDocumentTitle("No images in /images");
       return;
     }
 
@@ -581,19 +797,20 @@
       .flatMap((identity) => identity.traits)
       .reduce((sum, trait) => sum + trait.imagePaths.length, 0);
 
-    setStatus(`Preloading ${frameCount} frames across ${traitCount} traits...`);
+    loadingPanel.textContent = `Loading ${frameCount} frames…`;
 
     try {
       await preloadAllTraits();
     } catch (error) {
       loadingPanel.textContent = "Error while loading images";
-      setStatus(error instanceof Error ? error.message : "Unknown image loading error.");
+      updateDocumentTitle("Load error");
+      window.console.error(error instanceof Error ? error : new Error(String(error)));
       return;
     }
 
     if (!state.identities.length) {
       loadingPanel.textContent = "No valid traits found";
-      setStatus("No valid image traits were loaded from /images.");
+      updateDocumentTitle("No valid traits");
       return;
     }
 
@@ -607,6 +824,11 @@
     window.addEventListener("keyup", handleKeyUp, { passive: false });
     window.addEventListener("blur", handleBlur);
     window.addEventListener("resize", handleResize);
+
+    document.addEventListener("fullscreenchange", onFullscreenLayoutChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenLayoutChange);
+
+    window.addEventListener("keydown", tryRequestFullscreen, { capture: true, passive: true });
   }
 
   boot();
